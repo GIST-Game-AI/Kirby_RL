@@ -9,6 +9,7 @@ from model import DDQN
 #based on pytorch RL tutorial by yfeng997: https://github.com/yfeng997/MadMario/blob/master/agent.py
 class AIPlayer:
     def __init__(self, state_dim, action_space_dim, save_dir, date, config: Config):
+        print("action_space_dim: ", action_space_dim)
         self.state_dim = state_dim
         self.action_space_dim = action_space_dim
         self.save_dir = save_dir
@@ -32,6 +33,7 @@ class AIPlayer:
         self.memory = deque(maxlen=self.config.deque_size)
         self.batch_size = self.config.batch_size
         self.save_every = self.config.save_every  # no. of experiences between saving Mario Net
+        self.save_boss = self.config.save_boss
 
         """
             Q learning
@@ -105,13 +107,17 @@ class AIPlayer:
         state, next_state, action, reward, done = map(torch.stack, zip(*batch))
         return state, next_state, action.squeeze(), reward.squeeze(), done.squeeze()
 
-    def learn(self):
+    def learn(self, ai_type):
         """Update online action value (Q) function with a batch of experiences"""
         if self.curr_step % self.sync_every == 0:
             self.sync_Q_target()
 
-        if self.curr_step % self.save_every == 0:
-            self.save()
+        if ai_type == "platform":
+            if self.curr_step % self.save_every == 0:
+                self.save("platform")
+        else:
+            if self.curr_step % self.save_boss == 0:
+                self.save("boss")
 
         if self.curr_step < self.burnin:
             return None, None
@@ -185,11 +191,14 @@ class AIPlayer:
             f.write(f"learn_every = {self.config.learn_every}\n")
             f.write(f"sync_every = {self.config.sync_every}")
 
-    def save(self):
+    def save(self, ai_type):
         """
             Save the state to directory
         """
-        save_path = (self.save_dir / f"mario_net_0{int(self.curr_step // self.save_every)}.chkpt")
+        if ai_type == "platform":
+            save_path = (self.save_dir / f"mario_net_0{int(self.curr_step // self.save_every)}.chkpt")
+        else:
+            save_path = (self.save_dir / f"mario_net_0{int(self.curr_step // self.save_boss)}.chkpt")
         torch.save(
             dict(model=self.net.state_dict(), exploration_rate=self.exploration_rate),
             save_path,

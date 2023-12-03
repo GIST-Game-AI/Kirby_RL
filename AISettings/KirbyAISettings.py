@@ -22,14 +22,14 @@ class GameState:
 class KirbyAI(AISettingsInterface):
     def GetReward(self, previous_kirby: GameState, pyboy):
         current_kirby = GameState(pyboy)
-
+        result_reward = 0
         if current_kirby.boss_health == 0 and previous_kirby.boss_health > 0:
             return 10000
 
         if current_kirby.boss_health < previous_kirby.boss_health:
             return 1000
 
-        if current_kirby.health < previous_kirby.health and current_kirby.health == 1:
+        if current_kirby.health < previous_kirby.health:
             return -100
 
         if current_kirby.health == 0 and previous_kirby.health != 0:
@@ -38,23 +38,24 @@ class KirbyAI(AISettingsInterface):
         if current_kirby.health > 0 and current_kirby.game_state == 6 and previous_kirby.game_state != 6:  # if reached warpstar
             return 1000
 
-        if not self.IsBossActive(pyboy) and current_kirby.game_state != 6:  # if boss is dead or not active, punish for not moving right
-            if current_kirby.kirby_x_position < previous_kirby.kirby_x_position:  # moving left
-                return -1
+        if not self.IsBossActive(
+                pyboy) and current_kirby.game_state != 6:  # if boss is dead or not active, punish for not moving right
+            if current_kirby.kirby_x_position <= previous_kirby.kirby_x_position:  # moving left
+                result_reward += -1
+            elif current_kirby.kirby_x_position > previous_kirby.kirby_x_position:  # moving right
+                result_reward += 1
 
             if current_kirby.level_progress != previous_kirby.level_progress and current_kirby.kirby_x_position == 68:  # moving most left
-                return -5
+                result_reward += -5
 
-            if current_kirby.level_progress == previous_kirby.level_progress:  # standing still
-                return -1
-
-            if current_kirby.kirby_x_position == 76:  # moving most right
-                return 5
-            return 1  # moving right
+            if current_kirby.level_progress <= previous_kirby.level_progress:  # standing still
+                result_reward += -1
         else:
-            if current_kirby.score>previous_kirby.score:
-                return 100
-        return 0
+            if current_kirby.score > previous_kirby.score:
+                result_reward += 10
+        # if not self.IsBossActive(pyboy):
+        #     result_reward -= 5 # TODO: 아무것도 안할 경우 점수 decaying하는 건데 얼마만큼 할지는 하이퍼파라미터로 추가해주자
+        return result_reward
 
     def GetActions(self):
         baseActions = [WindowEvent.PRESS_BUTTON_A,
@@ -97,7 +98,8 @@ class KirbyAI(AISettingsInterface):
         config.exploration_rate_min = 0.01
         config.deque_size = 500000
         config.batch_size = 64
-        config.save_every = 2e5
+        config.save_every = 2e4
+        config.save_boss = 2000
         config.learning_rate_decay = 0.9999985
         config.gamma = 0.8
         config.learning_rate = 0.0002

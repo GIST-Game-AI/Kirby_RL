@@ -1,6 +1,7 @@
 *.ram
 Kirby_Dream_Land.gb
 Super_Mario_Land.gb
+*.chkpt
 
 
 # Byte-compiled / optimized / DLL files

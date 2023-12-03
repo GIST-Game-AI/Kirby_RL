@@ -16,7 +16,7 @@ from functions import alphanum_key
 """
   Variables
 """
-episodes = 40000
+episodes = 10000
 # gym variables  documentation: https://docs.pyboy.dk/openai_gym.html#pyboy.openai_gym.PyBoyGymEnv
 observation_types = ["raw", "tiles", "compressed", "minimal"]
 observation_type = observation_types[1]
@@ -74,6 +74,7 @@ elif mode == 4:
 """
 now = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
 save_dir = Path("checkpoints") / gameName / now
+save_dir2 = Path("checkpoints") / gameName / (now + "-2")
 save_dir_eval = Path("checkpoints") / gameName / (now + "-eval")
 save_dir_boss = Path("checkpoints") / gameName / (now + "-boss")
 checkpoint_dir = Path("checkpoints") / gameName
@@ -95,6 +96,7 @@ if pyboy.game_wrapper().cartridge_title == "KIRBY DREAM LA":
 env = CustomPyBoyGym(pyboy, observation_type=observation_type)
 env.setAISettings(aiSettings)  # use this settings
 filteredActions = aiSettings.GetActions()  # get possible actions
+kirby_boss_filteredActions = aiSettings.GetActions()
 print("Possible actions: ", [[WindowEvent(i).__str__() for i in x] for x in filteredActions])
 
 """
@@ -108,12 +110,36 @@ env = FrameStack(env, num_stack=frameStack)
 """
   Load AI players
 """
-aiPlayer = AIPlayer((frameStack,) + gameDimentions, len(filteredActions), save_dir, now, aiSettings.GetHyperParameters())
 bossAiPlayer = AIPlayer((frameStack,) + gameDimentions, len(filteredActions), save_dir_boss, now, aiSettings.GetBossHyperParameters())
+
+# filter 2 actions for kirby(left+right, down+else)
+if pyboy.game_wrapper().cartridge_title == "KIRBY DREAM LA":
+	entry_list=list()
+	for action_type in filteredActions:
+		if len(action_type) != 1:
+			for entry in action_type:
+				if WindowEvent(entry).__str__() == "PRESS_ARROW_DOWN":
+					entry_list.append(action_type)
+					continue
+
+			if WindowEvent(action_type[0]).__str__() == "PRESS_ARROW_LEFT" and WindowEvent(action_type[1]).__str__() == "PRESS_ARROW_RIGHT":
+				entry_list.append(action_type)
+
+	for entry in entry_list:
+		filteredActions.remove(entry)
+
+
+print("Kirby platform Possible actions: ", [[WindowEvent(i).__str__() for i in x] for x in filteredActions])
+aiPlayer = AIPlayer((frameStack,) + gameDimentions, len(filteredActions), save_dir, now, aiSettings.GetHyperParameters())
+
+print("Kirby platform 2 Possible actions: ", [[WindowEvent(i).__str__() for i in x] for x in filteredActions])
+aiPlayer2 = AIPlayer((frameStack,) + gameDimentions, len(filteredActions), save_dir2, now, aiSettings.GetHyperParameters())
+
 
 if mode < 2:  # evaluate
 	# load model
-	folderList = [name for name in os.listdir(checkpoint_dir) if os.path.isdir(checkpoint_dir / name) and len(os.listdir(checkpoint_dir / name)) != 0]
+	folderList = [name for name in os.listdir(checkpoint_dir) if
+				  os.path.isdir(checkpoint_dir / name) and len(os.listdir(checkpoint_dir / name)) != 0]
 
 	if len(folderList) == 0:
 		print("No models to load in path: ", save_dir)
@@ -135,7 +161,21 @@ if mode < 2:  # evaluate
 	modelPath = checkpoint_dir / folder / fileList[-1]
 	aiPlayer.loadModel(modelPath)
 
-	choice = int(input("Select folder with boss model[1-%s] (if not using boss model select same as previous): " % cnt)) - 1
+	choice = int(input("Select folder with platformer model 2[1-%s]: " % cnt)) - 1
+	folder = folderList[choice]
+	print(folder)
+
+	fileList = [f for f in os.listdir(checkpoint_dir / folder) if f.endswith(".chkpt")]
+	fileList.sort(key=alphanum_key)
+	if len(fileList) == 0:
+		print("No models to load in path: ", folder)
+		quit()
+
+	modelPath2 = checkpoint_dir / folder / fileList[-1]
+	aiPlayer2.loadModel(modelPath2)
+
+	choice = int(
+		input("Select folder with boss model[1-%s] (if not using boss model select same as previous): " % cnt)) - 1
 	folder = folderList[choice]
 	print(folder)
 
@@ -153,37 +193,86 @@ if mode < 2:  # evaluate
 """
 
 if train:
+	if len(sys.argv) >= 2:
+		fileList = [f for f in os.listdir(Path("checkpoints") / gameName / sys.argv[1]) if f.endswith(".chkpt")]
+		fileList.sort(key=alphanum_key)
+		if len(fileList) == 0:
+			print("No models to load in path: ", sys.argv[1])
+			quit()
+		modelPath = Path("checkpoints") / gameName / sys.argv[1] / fileList[-1]
+		print("load model for aiPlayer: ", modelPath)
+		aiPlayer.loadModel(modelPath)
+
+		if len(sys.argv) >= 3:
+			fileList = [f for f in os.listdir(Path("checkpoints") / gameName / sys.argv[2]) if f.endswith(".chkpt")]
+			fileList.sort(key=alphanum_key)
+			if len(fileList) == 0:
+				print("No models to load in path: ", sys.argv[2])
+				quit()
+			modelPath = Path("checkpoints") / gameName / sys.argv[2] / fileList[-1]
+			print("load model for bossAiPlayer: ", modelPath)
+			bossAiPlayer.loadModel(modelPath)
+
+			if len(sys.argv) >= 4:
+				fileList = [f for f in os.listdir(Path("checkpoints") / gameName / sys.argv[3]) if f.endswith(".chkpt")]
+				fileList.sort(key=alphanum_key)
+				if len(fileList) == 0:
+					print("No models to load in path: ", sys.argv[3])
+					quit()
+				modelPath = Path("checkpoints") / gameName / sys.argv[3] / fileList[-1]
+				print("load model for aiPlayer: ", modelPath)
+				aiPlayer2.loadModel(modelPath)
 	pyboy.set_emulation_speed(0)
 	save_dir.mkdir(parents=True)
 	save_dir_boss.mkdir(parents=True)
+	save_dir2.mkdir(parents=True)
 	logger = MetricLogger(save_dir_boss)
 	aiPlayer.saveHyperParameters()
+	aiPlayer2.saveHyperParameters()
 	bossAiPlayer.saveHyperParameters()
 
 	print("Training mode")
 	print("Total Episodes: ", episodes)
 	aiPlayer.net.train()
+	aiPlayer2.net.train()
 	bossAiPlayer.net.train()
 
 	player = aiPlayer
 	for e in range(episodes):
 		observation = env.reset()
 		start = time.time()
+		actionBool = True
+		firstEpisodeBool = True
 		while True:
+			if firstEpisodeBool and aiSettings.IsBossActive(pyboy):
+				firstEpisodeBool = False
+
+			player_type = "platform"
 			if aiSettings.IsBossActive(pyboy):
 				player = bossAiPlayer
+				player_type = "boss"
 			else:
 				player = aiPlayer
+				if (not firstEpisodeBool) and pyboy.game_wrapper().cartridge_title == "KIRBY DREAM LA":
+					player = aiPlayer2
 			# Make action based on current state
 			actionId = player.act(observation)
-			actions = filteredActions[actionId]
+			if pyboy.game_wrapper().cartridge_title == "KIRBY DREAM LA" and aiSettings.IsBossActive(pyboy): # for kirby boss
+				if actionBool:
+					actions = kirby_boss_filteredActions[0]
+					actionBool = False
+				else:
+					actions = kirby_boss_filteredActions[1]
+					actionBool = True
+			else:
+				actions = filteredActions[actionId]
 			# Agent performs action and moves 1 frame
 			next_observation, reward, done, info = env.step(actions)
 
 			# Remember
 			player.cache(observation, next_observation, actionId, reward, done)
 			# Learn
-			q, loss = player.learn()
+			q, loss = player.learn(player_type)
 			# Logging
 			logger.log_step(reward, loss, q, player.scheduler.get_last_lr())
 			# Update state
@@ -195,12 +284,12 @@ if train:
 		logger.log_episode()
 		logger.record(episode=e, epsilon=player.exploration_rate, stepsThisEpisode=player.curr_step, maxLength=aiSettings.GetLength(pyboy))
 
-	aiPlayer.save()
-	bossAiPlayer.save()
+	aiPlayer.save("platform")
+	bossAiPlayer.save("boss")
 	env.close()
 elif not train and not playtest:
 	print("Evaluation mode")
-	pyboy.set_emulation_speed(1)
+	pyboy.set_emulation_speed(0)
 
 	save_dir_eval.mkdir(parents=True)
 	logger = MetricLogger(save_dir_eval)
@@ -208,19 +297,38 @@ elif not train and not playtest:
 	aiPlayer.exploration_rate = 0
 	aiPlayer.net.eval()
 
+	aiPlayer2.exploration_rate = 0
+	aiPlayer2.net.eval()
+
 	bossAiPlayer.exploration_rate = 0
 	bossAiPlayer.net.eval()
 
 	player = aiPlayer
 	for e in range(episodes):
 		observation = env.reset()
+		actionBool = True
+		firstEpisodeBool = True
 		while True:
+			if firstEpisodeBool and aiSettings.IsBossActive(pyboy):
+				firstEpisodeBool = False
+
 			if aiSettings.IsBossActive(pyboy):
 				player = bossAiPlayer
 			else:
 				player = aiPlayer
+				if not firstEpisodeBool and pyboy.game_wrapper().cartridge_title == "KIRBY DREAM LA":
+					player = aiPlayer2
 			actionId = player.act(observation)
-			action = filteredActions[actionId]
+			if pyboy.game_wrapper().cartridge_title == "KIRBY DREAM LA" and aiSettings.IsBossActive(
+					pyboy):  # for kirby boss
+				if actionBool:
+					action = kirby_boss_filteredActions[0]
+					actionBool = False
+				else:
+					action = kirby_boss_filteredActions[1]
+					actionBool = True
+			else:
+				action = filteredActions[actionId]
 			next_observation, reward, done, info = env.step(action)
 
 			logger.log_step(reward, 1, 1, 1)

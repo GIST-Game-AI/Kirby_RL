@@ -18,7 +18,8 @@ class Config():
         """
         self.deque_size = 400000
         self.batch_size = 256
-        self.save_every = 5e5  # no. of experiences between saving Mario Net
+        self.save_every = 2e5  # no. of experiences between saving Mario Net
+        self.save_boss = 2000
 
         """
             Q learning
