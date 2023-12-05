@@ -1,0 +1,44 @@
+In the input, the game is divided into a Platform stage and a Boss stage. In the Platform stage, the objective is to get to the right end of the map and get the Star, and in the Boss stage, the objective is to reduce the Boss's Health to 0 by not hitting the objects thrown by the Boss, and Kirby sucking them up and spitting them back out to attack.
+
+Since the game is based on the Game boy
+Available results: [['PRESS_BUTTON_A'], ['PRESS_BUTTON_B'], ['PRESS_ARROW_UP'], ['PRESS_ARROW_DOWN'], ['PRESS_ARROW_LEFT'], ['PRESS_ARROW_RIGHT'], ['PRESS_BUTTON_A', 'PRESS_BUTTON_B'],
+ ['PRESS_BUTTON_A', 'PRESS_ARROW_UP'], ['PRESS_BUTTON_A', 'PRESS_ARROW_LEFT'], ['PRESS_BUTTON_A', 'PRESS_ARROW_RIGHT'], ['PRESS_BUTTON_B', 'PRESS_ARROW_UP'], ['PRESS_BUTTON_B', 'PRESS_ARROW_LEFT'], ['PRESS_BUTTON_B', 'PRESS_ARROW_RIGHT'], ['PRESS_ARROW_UP', 'PRESS_ARROW_LEFT'], ['PRESS_ARROW_UP', 'PRESS_ARROW_RIGHT']]
+You can press the keys organized like this.
+A is for jumping, B is for sucking up when there is nothing, and if you suck up something, you can spit it back out to attack.
+
+Here's an example of the expected input and output
+
+1st prompt example
+Game: Kirby's Dream Land
+Current State: { Kirby's Health: 4, Boss Health: 1, Score: 1000, Key-down: ['PRESS_BUTTON_B', 'PRESS_ARROW_RIGHT']}
+Current State Picture: (this will be offered later prompt message)
+
+1st response example is below json.
+{
+    Description: In the current situation, Kirby appears to be facing off with an enemy boss who is close to being defeated, given the boss's health is down to 1. With Kirby's health at a relatively comfortable 4,
+you have some leeway in how to approach the next actions.
+    strategy:
+            1. Position Kirby: Move into a position that allows you to soak up the attacks the boss throws at you. 2. Use Kirby's Abilities: Move into a position that allows you to soak up the attacks the boss throws at you. 3.
+2. Use Kirby's Abilities: In the current stage, you'll need to suck up the objects the boss throws and spit them back out, so you'll want to hold B to stay in the current state until the boss attacks. 3.
+3. Attack the Boss: Once you're in position and it's safe to do so, attack the boss by using [B] which is the button for Kirby's ability usage.
+    Keys to push for next: ['PRESS_BUTTON_B', 'PRESS_ARROW_RIGHT']
+}
+
+
+2nd example
+Game: Kirby's Dream Land
+Current State: { Kirby's Health: 3, Boss Health: 1, Score: 1000, Key-down: ['PRESS_BUTTON_B', 'PRESS_ARROW_RIGHT']}
+Current State Picture: (this will be offered later prompt message)
+
+2st response example is below json.
+{
+    Description: Kirby's health is currently down a bit. To avoid being attacked by monsters, it would be beneficial to press Move: UP to move quickly in the air.,
+    strategy:
+            1. Position Kirby: Move into the air where you won't encounter other monsters.
+            2. Use Kirby's Abilities: If you can't avoid the monsters, press Action: B to suck them in.
+            3. Attack the Enemy: If you suck up a monster and another monster is still present, press Action: B again to attack.
+    Keys to push for next: ['PRESS_ARROW_UP', 'PRESS_ARROW_RIGHT']
+}
+
+
+The above sentences are informational conversations, so don't answer anything and keep context for that.
